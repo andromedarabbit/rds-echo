@@ -4,8 +4,8 @@ import com.google.common.io.Files
 // Settings
 ext {
     project_group = 'com.github.blacklocus'
-    project_version = '0.1.10'
-    project_jdk = '1.7'
+    project_version = '0.2.0'
+    project_jdk = '1.8'
     project_pom = {
         name 'rds-echo'
         description 'Tooling for automated RDS restorations from snapshots'
@@ -93,6 +93,7 @@ apply plugin: 'maven'
 apply plugin: 'signing'
 apply plugin: 'idea'
 
+
 buildscript {
     repositories {
         mavenCentral()
@@ -100,8 +101,11 @@ buildscript {
     dependencies {
         classpath 'com.github.rholder:gradle-autojar:1.0.1'
     }
+
 }
 apply plugin: 'gradle-autojar'
+
+mainClassName = "com.github.blacklocus.rdsecho.Echo"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Dependencies
@@ -121,14 +125,13 @@ repositories {
 }
 
 dependencies {
-    compile 'com.amazonaws:aws-java-sdk-rds:1.9.16'
-    compile 'com.amazonaws:aws-java-sdk-route53:1.9.16'
+    compile 'com.amazonaws:aws-java-sdk-rds:1.11.827'
+    compile 'com.amazonaws:aws-java-sdk-route53:1.11.827'
     compile 'commons-configuration:commons-configuration:1.10'
     compile 'com.google.guava:guava:18.0'
     compile 'org.slf4j:slf4j-api:1.7.10'
     compile 'org.slf4j:slf4j-simple:1.7.10'
     compile 'com.github.rholder:guava-retrying:2.0.0'
-
     testCompile 'org.testng:testng:6.8.17'
     // Because can output line numbers
     testCompile 'ch.qos.logback:logback-core:1.1.2'

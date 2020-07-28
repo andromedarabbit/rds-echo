@@ -26,6 +26,7 @@ package com.github.blacklocus.rdsecho;
 
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.AmazonRDSClient;
+import com.amazonaws.services.rds.AmazonRDSClientBuilder;
 import com.amazonaws.services.rds.model.AddTagsToResourceRequest;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DBSnapshot;
@@ -50,7 +51,7 @@ public class EchoNew implements Callable<Boolean> {
 
     private static final Logger LOG = LoggerFactory.getLogger(EchoNew.class);
 
-    final AmazonRDS rds = new AmazonRDSClient();
+    final AmazonRDS rds = AmazonRDSClientBuilder.defaultClient();
 
     final EchoCfg cfg = EchoCfg.getInstance();
     final EchoUtil echo = new EchoUtil();
@@ -62,19 +63,22 @@ public class EchoNew implements Callable<Boolean> {
 
         String tagEchoManaged = echo.getTagEchoManaged();
 
-        LOG.info("[{}] Checking to see if current echo-created instance (tagged {}) was created less than 24 hours ago. " +
+        Optional<Integer> minimumAgeHoursOpt = cfg.newMinimumAgeHours();
+        int minimumAgeHours = minimumAgeHoursOpt.isPresent()? minimumAgeHoursOpt.get(): 24;
+
+        LOG.info("[{}] Checking to see if current echo-created instance (tagged {}) was created less than x hours ago. " +
                 "If so this operation will not continue.", COMMAND_NEW, tagEchoManaged);
         Optional<DBInstance> newestInstanceOpt = echo.lastEchoInstance();
         if (newestInstanceOpt.isPresent()) {
 
-            if (new DateTime(newestInstanceOpt.get().getInstanceCreateTime()).plusHours(24).isAfter(DateTime.now())) {
-                LOG.info("[{}] Last echo-created RDS instance {} was created less than 24 hours ago. Aborting.",
-                        COMMAND_NEW, tagEchoManaged);
+            if (new DateTime(newestInstanceOpt.get().getInstanceCreateTime()).plusHours(minimumAgeHours).isAfter(DateTime.now())) {
+                LOG.info("[{}] Last echo-created RDS instance {} was created less than {} hours ago. Aborting.",
+                        COMMAND_NEW, tagEchoManaged, minimumAgeHours);
                 return false;
 
             } else {
-                LOG.info("[{}] Last echo-created RDS instance {} was created more than 24 hours ago. Proceeding.",
-                        COMMAND_NEW, tagEchoManaged);
+                LOG.info("[{}] Last echo-created RDS instance {} was created more than {} hours ago. Proceeding.",
+                        COMMAND_NEW, tagEchoManaged, minimumAgeHours);
             }
 
         } else {
@@ -173,6 +177,18 @@ public class EchoNew implements Callable<Boolean> {
         if (autoMinorVersionOpt.isPresent()) {
             request.withAutoMinorVersionUpgrade(autoMinorVersionOpt.get());
             printer.format("  auto minor ver up: %s%n", autoMinorVersionOpt.get());
+        }
+
+        Optional<String[]> vpcSecurityGroupIdsOpt = cfg.newVpcSecurityGroupIds();
+        if (vpcSecurityGroupIdsOpt.isPresent()) {
+            request.withVpcSecurityGroupIds(vpcSecurityGroupIdsOpt.get());
+            printer.format("  vpc security group ids: %s%n", Arrays.asList(vpcSecurityGroupIdsOpt.get()));
+        }
+
+        Optional<String> dbSubnetGroupNameOpt = cfg.newDbSubnetGroupName();
+        if (dbSubnetGroupNameOpt.isPresent()) {
+            request.withDBSubnetGroupName(dbSubnetGroupNameOpt.get());
+            printer.format("  db subnet group name: %s%n", dbSubnetGroupNameOpt.get());
         }
 
         LOG.info(proposed.toString());

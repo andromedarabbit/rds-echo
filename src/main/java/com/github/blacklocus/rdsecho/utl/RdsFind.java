@@ -25,7 +25,7 @@ package com.github.blacklocus.rdsecho.utl;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.rds.AmazonRDSClient;
+import com.amazonaws.services.rds.AmazonRDSClientBuilder;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DBSnapshot;
 import com.amazonaws.services.rds.model.DescribeDBInstancesRequest;
@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit;
 
 public class RdsFind {
 
-    final AmazonRDS rds = new AmazonRDSClient();
+    final AmazonRDS rds = AmazonRDSClientBuilder.defaultClient();
 
     // Retry 10 times with exponential backoff, starting with 1 second bounded to 60 seconds
     final Retryer<ListTagsForResourceResult> tagRetryer = RetryerBuilder.<ListTagsForResourceResult>newBuilder()

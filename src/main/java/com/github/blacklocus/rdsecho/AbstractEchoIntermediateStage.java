@@ -24,7 +24,7 @@
 package com.github.blacklocus.rdsecho;
 
 import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.rds.AmazonRDSClient;
+import com.amazonaws.services.rds.AmazonRDSClientBuilder;
 import com.amazonaws.services.rds.model.AddTagsToResourceRequest;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.Tag;
@@ -43,7 +43,7 @@ abstract class AbstractEchoIntermediateStage implements Callable<Boolean> {
     final String requisiteStage;
     final String resultantStage;
 
-    final AmazonRDS rds = new AmazonRDSClient();
+    final AmazonRDS rds = AmazonRDSClientBuilder.defaultClient();
 
     final EchoCfg cfg = EchoCfg.getInstance();
     final EchoUtil echo = new EchoUtil();

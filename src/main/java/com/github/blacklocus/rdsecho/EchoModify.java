@@ -65,11 +65,22 @@ public class EchoModify extends AbstractEchoIntermediateStage {
             request.withDBSecurityGroups(dbSecurityGroupsOpt.get());
             printer.format("  db security groups     : %s%n", Arrays.asList(dbSecurityGroupsOpt.get()));
         }
+        Optional<String[]> vpcSecurityGroupIdsOpt = cfg.modVpcSecurityGroupIds();
+        if (vpcSecurityGroupIdsOpt.isPresent()) {
+            request.withVpcSecurityGroupIds(vpcSecurityGroupIdsOpt.get());
+            printer.format("  vpc security group ids    : %s%n", Arrays.asList(vpcSecurityGroupIdsOpt.get()));
+        }
+        Optional<String> dbSubnetGroupNameOpt = cfg.modDbSubnetGroupName();
+        if (dbSubnetGroupNameOpt.isPresent()) {
+            request.setDBSubnetGroupName(dbSubnetGroupNameOpt.get());
+            printer.format("  db subnet group name     : %s%n", dbSubnetGroupNameOpt.get());
+        }
         Optional<Integer> backupRetentionPeriodOpt = cfg.modBackupRetentionPeriod();
         if (backupRetentionPeriodOpt.isPresent()) {
             request.withBackupRetentionPeriod(backupRetentionPeriodOpt.get());
             printer.format("  backup retention period: %d%n", backupRetentionPeriodOpt.get());
         }
+
         boolean applyImmediately = cfg.modApplyImmediately();
         printer.format("  apply immediately      : %b%n", applyImmediately);
         request.withApplyImmediately(applyImmediately);

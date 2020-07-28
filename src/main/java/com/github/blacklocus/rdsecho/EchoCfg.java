@@ -25,12 +25,17 @@ package com.github.blacklocus.rdsecho;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Collections2;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.configuration.SystemConfiguration;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 public class EchoCfg {
 
@@ -56,12 +61,17 @@ public class EchoCfg {
     public static final String PROP_NEW_OPTION_GROUP_NAME = PREFIX + "new.optionGroupName";
     public static final String PROP_NEW_AUTO_MINOR_VERSION_UPGRADE = PREFIX + "new.autoMinorVersionUpgrade";
     public static final String PROP_NEW_TAGS = PREFIX + "new.tags";
+    public static final String PROP_NEW_VPC_SECURITY_GROUP_IDS = PREFIX + "new.vpcSecurityGroupIds";
+    public static final String PROP_NEW_DB_SUBNET_GROUP_NAME = PREFIX + "new.dbSubnetGroupName";
+    public static final String PROP_NEW_MINIMUM_AGE_HOURS = PREFIX + "new.minimumAgeHours";
 
     // Modify parameters are mostly optional
     public static final String PROP_MOD_DB_PARAMETER_GROUP_NAME = PREFIX + "mod.dbParameterGroupName";
     public static final String PROP_MOD_DB_SECURITY_GROUPS = PREFIX + "mod.dbSecurityGroups";
+    public static final String PROP_MOD_VPC_SECURITY_GROUP_IDS = PREFIX + "mod.vpcSecurityGroupIds";
     public static final String PROP_MOD_BACKUP_RETENTION_PERIOD = PREFIX + "mod.backupRetentionPeriod";
     public static final String PROP_MOD_APPLY_IMMEDIATELY = PREFIX + "mod.applyImmediately";
+    public static final String PROP_MOD_DB_SUBNET_GROUP_NAME = PREFIX + "mod.dbSubnetGroupName";
 
     // Promote parameters are required
     public static final String PROP_PROMOTE_CNAME = PREFIX + "promote.cname";
@@ -169,12 +179,41 @@ public class EchoCfg {
         }
     }
 
+    public Optional<String[]> newVpcSecurityGroupIds() {
+        String[] valuesRead = cfg.getStringArray(PROP_NEW_VPC_SECURITY_GROUP_IDS);
+        String[] values = Arrays.stream(valuesRead).filter(StringUtils::isNotEmpty).toArray(String[]::new);
+        if (values == null || values.length == 0) {
+            return Optional.absent();
+        } else {
+            return Optional.of(values);
+        }
+    }
+
+    public Optional<String> newDbSubnetGroupName() {
+        return Optional.fromNullable(cfg.getString(PROP_NEW_DB_SUBNET_GROUP_NAME, null));
+    }
+
+    public Optional<Integer> newMinimumAgeHours() {
+        return Optional.fromNullable(cfg.getInteger(PROP_NEW_MINIMUM_AGE_HOURS, 20));
+    }
+
     public Optional<String> modDbParameterGroupName() {
         return Optional.fromNullable(cfg.getString(PROP_MOD_DB_PARAMETER_GROUP_NAME));
     }
 
     public Optional<String[]> modDbSecurityGroups() {
-        String[] values = cfg.getStringArray(PROP_MOD_DB_SECURITY_GROUPS);
+        String[] valuesRead = cfg.getStringArray(PROP_MOD_DB_SECURITY_GROUPS);
+        String[] values = Arrays.stream(valuesRead).filter(StringUtils::isNotEmpty).toArray(String[]::new);
+        if (values == null || values.length == 0) {
+            return Optional.absent();
+        } else {
+            return Optional.of(values);
+        }
+    }
+
+    public Optional<String[]> modVpcSecurityGroupIds() {
+        String[] valuesRead = cfg.getStringArray(PROP_MOD_VPC_SECURITY_GROUP_IDS);
+        String[] values = Arrays.stream(valuesRead).filter(StringUtils::isNotEmpty).toArray(String[]::new);
         if (values == null || values.length == 0) {
             return Optional.absent();
         } else {
@@ -188,6 +227,10 @@ public class EchoCfg {
 
     public boolean modApplyImmediately() {
         return cfg.getBoolean(PROP_MOD_APPLY_IMMEDIATELY);
+    }
+
+    public Optional<String> modDbSubnetGroupName() {
+        return Optional.fromNullable(cfg.getString(PROP_MOD_DB_SUBNET_GROUP_NAME, null));
     }
 
     public String promoteCname() {

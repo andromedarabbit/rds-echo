@@ -41,7 +41,11 @@ import java.util.Collections;
 
 
 public class Route53Find {
-    final AmazonRoute53 route53 = new AmazonRoute53Client();
+    final AmazonRoute53 route53;
+
+    public Route53Find(AmazonRoute53 route53) {
+        this.route53 = route53;
+    }
 
     public Optional<HostedZone> hostedZone() {
         return Optional.fromNullable(Iterables.getFirst(hostedZones(), null));

@@ -23,12 +23,10 @@
  */
 package com.github.blacklocus.rdsecho;
 
-import com.amazonaws.services.rds.model.AddTagsToResourceRequest;
-import com.amazonaws.services.rds.model.DBInstance;
-import com.amazonaws.services.rds.model.Endpoint;
-import com.amazonaws.services.rds.model.Tag;
+import com.amazonaws.services.rds.model.*;
 import com.amazonaws.services.route53.AmazonRoute53;
 import com.amazonaws.services.route53.AmazonRoute53Client;
+import com.amazonaws.services.route53.AmazonRoute53ClientBuilder;
 import com.amazonaws.services.route53.model.Change;
 import com.amazonaws.services.route53.model.ChangeAction;
 import com.amazonaws.services.route53.model.ChangeBatch;
@@ -41,9 +39,11 @@ import com.github.blacklocus.rdsecho.utl.EchoUtil;
 import com.github.blacklocus.rdsecho.utl.RdsFind;
 import com.github.blacklocus.rdsecho.utl.Route53Find;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -55,8 +55,8 @@ public class EchoPromote extends AbstractEchoIntermediateStage {
 
     private static final Logger LOG = LoggerFactory.getLogger(EchoPromote.class);
 
-    final AmazonRoute53 route53 = new AmazonRoute53Client();
-    final Route53Find route53Find = new Route53Find();
+    final AmazonRoute53 route53 = AmazonRoute53ClientBuilder.defaultClient();
+    final Route53Find route53Find = new Route53Find(route53);
 
     public EchoPromote() {
         super(EchoConst.STAGE_REBOOTED, EchoConst.STAGE_PROMOTED);
@@ -70,10 +70,8 @@ public class EchoPromote extends AbstractEchoIntermediateStage {
         HostedZone hostedZone = route53Find.hostedZone(nameEquals(tld)).get();
         LOG.info("[{}] Found corresponding HostedZone. name: {} id: {}", getCommand(), hostedZone.getName(), hostedZone.getId());
 
-        ResourceRecordSet resourceRecordSet = route53Find.resourceRecordSet(
-                hostedZone.getId(), cnameEquals(cfg.promoteCname())).get();
-        ResourceRecord resourceRecord = getOnlyElement(resourceRecordSet.getResourceRecords());
-        LOG.info("[{}] Found CNAME {} with current value {}", getCommand(), resourceRecordSet.getName(), resourceRecord.getValue());
+        Optional<ResourceRecordSet> resourceRecordSetOpt = route53Find.resourceRecordSet(
+                hostedZone.getId(), cnameEquals(cfg.promoteCname()));
 
         Endpoint endpoint = instance.getEndpoint();
         String tagEchoManaged = echo.getTagEchoManaged();
@@ -84,6 +82,20 @@ public class EchoPromote extends AbstractEchoIntermediateStage {
             return false;
         }
         String instanceAddr = endpoint.getAddress();
+
+        if( !resourceRecordSetOpt.isPresent() ) {
+            ResourceRecordSet recordSet = new ResourceRecordSet(cfg.promoteCname(), "CNAME");
+
+            ResourceRecord record = new ResourceRecord(instanceAddr + ".notexist");
+            recordSet.setResourceRecords(Lists.newArrayList(record));
+
+            resourceRecordSetOpt = Optional.of(recordSet);
+        }
+
+        ResourceRecordSet resourceRecordSet = resourceRecordSetOpt.get();
+        ResourceRecord resourceRecord = getOnlyElement(resourceRecordSet.getResourceRecords());
+        LOG.info("[{}] Found CNAME {} with current value {}", getCommand(), resourceRecordSet.getName(), resourceRecord.getValue());
+
         if (resourceRecord.getValue().equals(instanceAddr)) {
             LOG.info("[{}] Echo DB instance {} ({}) lines up with CNAME {}. Nothing to do.",
                     getCommand(), tagEchoManaged, instanceAddr, resourceRecordSet.getName());
