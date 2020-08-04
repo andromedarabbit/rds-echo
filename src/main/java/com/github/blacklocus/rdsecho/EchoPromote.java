@@ -99,10 +99,18 @@ public class EchoPromote extends AbstractEchoIntermediateStage {
         if (resourceRecord.getValue().equals(instanceAddr)) {
             LOG.info("[{}] Echo DB instance {} ({}) lines up with CNAME {}. Nothing to do.",
                     getCommand(), tagEchoManaged, instanceAddr, resourceRecordSet.getName());
-            return false;
         } else {
             LOG.info("[{}] Echo DB instance {} ({}) differs from CNAME {}.",
                     getCommand(), tagEchoManaged, instanceAddr, resourceRecordSet.getName());
+
+            LOG.info("[{}] Updating CNAME {} from {} to {}", getCommand(), cfg.name(), resourceRecord.getValue(), instanceAddr);
+            ChangeResourceRecordSetsRequest request = new ChangeResourceRecordSetsRequest()
+                    .withHostedZoneId(hostedZone.getId())
+                    .withChangeBatch(new ChangeBatch()
+                            .withChanges(new Change(ChangeAction.UPSERT, new ResourceRecordSet(cfg.promoteCname(), RRType.CNAME)
+                                    .withResourceRecords(new ResourceRecord(instanceAddr))
+                                    .withTTL(cfg.promoteTtl()))));
+            route53.changeResourceRecordSets(request);
         }
 
         if (cfg.interactive()) {
@@ -112,15 +120,6 @@ public class EchoPromote extends AbstractEchoIntermediateStage {
                 return false;
             }
         }
-
-        LOG.info("[{}] Updating CNAME {} from {} to {}", getCommand(), cfg.name(), resourceRecord.getValue(), instanceAddr);
-        ChangeResourceRecordSetsRequest request = new ChangeResourceRecordSetsRequest()
-                .withHostedZoneId(hostedZone.getId())
-                .withChangeBatch(new ChangeBatch()
-                        .withChanges(new Change(ChangeAction.UPSERT, new ResourceRecordSet(cfg.promoteCname(), RRType.CNAME)
-                                .withResourceRecords(new ResourceRecord(instanceAddr))
-                                .withTTL(cfg.promoteTtl()))));
-        route53.changeResourceRecordSets(request);
 
         Optional<String[]> promoteTags = cfg.promoteTags();
         if (promoteTags.isPresent()) {
@@ -136,6 +135,21 @@ public class EchoPromote extends AbstractEchoIntermediateStage {
         }
 
         LOG.info("[{}] Searching for any existing promoted instance to demote.", getCommand()); // TODO no it doesn't
+
+        EchoUtil echo = new EchoUtil();
+
+        Iterable<DBInstance> validInstances = echo.echoInstances();
+        String tagEchoStage = echo.getTagEchoStage();
+
+        for (DBInstance validInstance : validInstances) {
+            if (validInstance.getDBInstanceArn().equalsIgnoreCase(instance.getDBInstanceArn())) {
+                continue;
+            }
+
+            rds.addTagsToResource(new AddTagsToResourceRequest()
+                    .withResourceName(RdsFind.instanceArn(cfg.region(), cfg.accountNumber(), validInstance.getDBInstanceIdentifier()))
+                    .withTags(new Tag().withKey(tagEchoStage).withValue(EchoConst.STAGE_FORGOTTEN)));
+        }
 
         return true;
     }

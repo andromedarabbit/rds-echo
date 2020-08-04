@@ -29,7 +29,6 @@ import com.amazonaws.services.rds.model.Tag;
 import com.github.blacklocus.rdsecho.EchoCfg;
 import com.github.blacklocus.rdsecho.EchoConst;
 import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,10 +59,9 @@ public class EchoUtil {
                 cfg.region(), cfg.accountNumber(), getTagEchoManaged(), "true")));
     }
 
-    public Optional<DBInstance> promotedInstance() {
-        return Optional.fromNullable(Iterables.getOnlyElement(rdsFind.instances(rdsFind.instanceHasTag(
-                cfg.region(), cfg.accountNumber(), getTagEchoStage(), EchoConst.STAGE_PROMOTED
-        )), null));
+    public Iterable<DBInstance> echoInstances() {
+        return RdsFind.validInstances(rdsFind.instances(rdsFind.instanceHasTag(
+                cfg.region(), cfg.accountNumber(), getTagEchoManaged(), "true")));
     }
 
     public Optional<Tag> instanceStage(String dbInstanceIdentifier) {

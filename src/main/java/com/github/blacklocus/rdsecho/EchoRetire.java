@@ -23,9 +23,13 @@
  */
 package com.github.blacklocus.rdsecho;
 
+import com.amazonaws.services.rds.model.AddTagsToResourceRequest;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DeleteDBInstanceRequest;
+import com.amazonaws.services.rds.model.Tag;
 import com.github.blacklocus.rdsecho.utl.EchoUtil;
+import com.github.blacklocus.rdsecho.utl.RdsFind;
+import com.google.common.base.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +38,61 @@ public class EchoRetire extends AbstractEchoIntermediateStage {
     private static final Logger LOG = LoggerFactory.getLogger(EchoRetire.class);
 
     public EchoRetire() {
-        super(EchoConst.STAGE_PROMOTED, EchoConst.STAGE_RETIRED);
+        super(EchoConst.STAGE_FORGOTTEN, EchoConst.STAGE_RETIRED);
     }
+
+    @Override
+    public Boolean call() throws Exception {
+
+        // Validate state, make sure we're operating on what we expect to.
+
+        String tagEchoManaged = echo.getTagEchoManaged();
+        String tagEchoStage = echo.getTagEchoStage();
+        String command = this.getCommand();
+
+        LOG.info("[{}] Locating Echo managed instances (tagged with {}=true)", command, tagEchoManaged);
+
+        Iterable<DBInstance> instances = echo.echoInstances();
+        for (DBInstance instance : instances) {
+            String dbInstanceId = instance.getDBInstanceIdentifier();
+            LOG.info("[{}] Located echo-managed instance with identifier {}", command, dbInstanceId);
+
+            Optional<Tag> stageOpt = echo.instanceStage(instance.getDBInstanceIdentifier());
+            if (!stageOpt.isPresent()) {
+                LOG.error("[{}] Unable to read Echo stage tag on instance {}. Exiting.\n" +
+                                "(If the instance is supposed to be in stage {} but isn't, edit " +
+                                "the instance's tags to add {}={} and run this operation again.)",
+                        command, dbInstanceId, requisiteStage, tagEchoStage, requisiteStage);
+                continue;
+            }
+            String instanceStage = stageOpt.get().getValue();
+            if (!requisiteStage.equals(instanceStage)) {
+                LOG.info("[{}] Instance {} has stage {} but this operation is looking for {}={}. Exiting.\n",
+                        command, dbInstanceId, instanceStage, tagEchoStage, requisiteStage);
+                continue;
+            }
+
+            // Looks like we found a good echo instance, but is it available to us?
+
+            if (!"available".equals(instance.getDBInstanceStatus())) {
+                LOG.info("[{}] Instance {} is in correct stage of {} but does not have status 'available' (saw {}) so aborting.",
+                        command, dbInstanceId, instanceStage, instance.getDBInstanceStatus());
+                continue;
+            }
+
+            // Do the part special to traversing this stage
+
+            if (traverseStage(instance)) {
+                // Advance. This replaces, same-named tags.
+                rds.addTagsToResource(new AddTagsToResourceRequest()
+                        .withResourceName(RdsFind.instanceArn(cfg.region(), cfg.accountNumber(), instance.getDBInstanceIdentifier()))
+                        .withTags(new Tag().withKey(tagEchoStage).withValue(resultantStage)));
+            }
+        }
+
+        return true;
+    }
+
 
     @Override
     boolean traverseStage(DBInstance instance) {

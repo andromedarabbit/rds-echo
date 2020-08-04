@@ -26,15 +26,7 @@ package com.github.blacklocus.rdsecho.utl;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.AmazonRDSClientBuilder;
-import com.amazonaws.services.rds.model.DBInstance;
-import com.amazonaws.services.rds.model.DBSnapshot;
-import com.amazonaws.services.rds.model.DescribeDBInstancesRequest;
-import com.amazonaws.services.rds.model.DescribeDBInstancesResult;
-import com.amazonaws.services.rds.model.DescribeDBSnapshotsRequest;
-import com.amazonaws.services.rds.model.DescribeDBSnapshotsResult;
-import com.amazonaws.services.rds.model.ListTagsForResourceRequest;
-import com.amazonaws.services.rds.model.ListTagsForResourceResult;
-import com.amazonaws.services.rds.model.Tag;
+import com.amazonaws.services.rds.model.*;
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
@@ -43,11 +35,14 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 
 public class RdsFind {
@@ -190,6 +185,15 @@ public class RdsFind {
             }
         }
         return Optional.fromNullable(newest);
+    }
+
+    public static List<DBInstance> validInstances(Iterable<DBInstance> instances) {
+        List<DBInstance> dbInstances = Lists.newArrayList(instances);
+        return dbInstances
+                .stream()
+                .filter(input -> input != null && input.getInstanceCreateTime() != null )
+                .collect(Collectors.toList())
+                ;
     }
 
     public static Optional<DBSnapshot> newestSnapshot(Iterable<DBSnapshot> snapshots) {
